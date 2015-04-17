@@ -29,7 +29,7 @@ class ChiefDelphi (object):
         This method gets a join date for a given user id
         
         :param int user_id: The user id to find the date of
-        :return datetime.date: The date a user joined
+        :return string: The date a user joined
         '''
         params_payload = {"u": user_id}
         page_file = "member.php"
@@ -53,6 +53,19 @@ class ChiefDelphi (object):
         join_date = soup.find_all('table',  attrs={'class':'tborder'})[3].find_all("tr")[1].find_all('td')[0].find('div', attrs={'class':'fieldset'}).text.strip()
         logging.debug("Found join date of:%s for id: %s" % (join_date, user_id))
         return join_date
+    def get_number_posts(self, user_id):
+        '''
+        This method gets the number of posts for a given user id
+
+        :param int user_id: The user id
+        :return int: Number of posts a user has made
+        '''
+        params_payload = {"u": user_id}
+        page_file = "member.php"
+        soup = self.get_page(page_file, params_payload)
+        logging.debug(soup)
+        numPosts = soup.find_all('table',  attrs={'class':'tborder'})[3].find_all("tr")[1].find_all('td')[0].find_all('div', attrs={'class':'fieldset'})[1]
+        print(numPosts)
 
 def main():
     '''
