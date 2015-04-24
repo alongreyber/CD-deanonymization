@@ -2,7 +2,7 @@ import logging
 import re
 import requests
 from bs4 import BeautifulSoup
-import csv
+from datetime import date
 
 url_base = "http://chiefdelphi.com/forums/"
 target_user_id = 25240;
@@ -50,9 +50,15 @@ class ChiefDelphi (object):
         page_file = "member.php"
         soup = self.get_page(page_file, params_payload)
         logging.debug(soup)
-        join_date = soup.find_all('table',  attrs={'class':'tborder'})[3].find_all("tr")[1].find_all('td')[0].find('div', attrs={'class':'fieldset'}).text.strip()
-        logging.debug("Found join date of:%s for id: %s" % (join_date, user_id))
+        num_tables = len(soup.find_all('table',  attrs={'class':'tborder'})) #this helps if there is a signature on the page
+        join_date_string = soup.find_all('table',  attrs={'class':'tborder'})[num_tables - 1].find_all("tr")[1].find_all('td')[0].find('div', attrs={'class':'fieldset'}).text.strip()
+        yr = join_date_string[join_date_string.find("-") + 4:]
+        mon = join_date_string[join_date_string.find("-") - 2:join_date_string.find("-")]
+        day = join_date_string[join_date_string.find("-") + 1:join_date_string.find("-") + 3]
+        join_date = date(int(yr),int(mon),int(day))
+        logging.debug("Found join date of:%s for id: %s" % (join_date_string, user_id))
         return join_date
+
     def get_number_posts(self, user_id):
         '''
         This method gets the number of posts for a given user id
@@ -79,9 +85,8 @@ class ChiefDelphi (object):
         This method returns a list of all the posts by the specified user
 
         :param int user_id: The user id
-        :return list[string]: Post data. Each post is a different element
         '''
-        post_data = []
+        post_list = []
         page_file = "search.php"
         params_payload = {"do":"finduser","u":user_id }
         search_session = requests.Session() #create a session
@@ -103,16 +108,17 @@ class ChiefDelphi (object):
             post_page_soup = self.get_page(link,{}) #this is the page of the forum with the full post on it
             logging.debug(post_page_soup)
             post = post_page_soup.find("div", {"id":"post_message_" + post_number})
-            post_data.append(post)
-        return post_data
+            post_data = {post_number:post}
+            post_list.append(post_data) 
+        return post_list
 
-    def get_users_with_posts(self,min_posts):
+    def get_user_data(self,min_posts):
         '''
         This method returns a list of all user ids with the specified number of posts
 
         The more posts you have, the longer this will take!
         '''
-        return_ids = []
+        return_list = []
         page_file = "memberlist.php"
         page_number = 1
         done = False
@@ -123,19 +129,26 @@ class ChiefDelphi (object):
             for row in main_table:
                 if row == main_table[0]: #first row is just a header for the table
                     continue
-                user_link_string = row.find("td").find("a")['href']
-                user_id_string = user_link_string[user_link_string.find("u=")+2:]
-                user_id = int(user_id_string)
                 post_number_string = row.find_all("td")[1].text
                 post_number = int(post_number_string.replace(',','')) #run a replace because the post number has commas
                 if(post_number < min_posts):
                     done = True
                     break
-                return_ids.append(user_id)
+
+                user_link_string = row.find("td").find("a")['href']
+                user_id_string = user_link_string[user_link_string.find("u=")+2:]
+                user_id = int(user_id_string)
+
+                user_name = row.find("td").find("a").text
+                team_number = row.find_all("td")[4].text
+                join_date = self.get_user_join_date(user_id)
+
+                user_data = {"name":user_name,"id":user_id,"posts":post_number,"join":join_date,"team":team_number}
+                return_list.append(user_data)
             if done:
                 break
             page_number += 1
-        return return_ids
+        return return_list
 
 def main():
     '''
