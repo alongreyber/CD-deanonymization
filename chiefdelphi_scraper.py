@@ -2,6 +2,7 @@ import logging
 import re
 import requests
 from bs4 import BeautifulSoup
+import csv
 
 url_base = "http://chiefdelphi.com/forums/"
 target_user_id = 25240;
@@ -66,6 +67,13 @@ class ChiefDelphi (object):
         numPosts = soup.find_all('table',  attrs={'class':'tborder'})[3].find("tr", attrs={"valign":"top"}).find('table').find('strong').text
         return int(numPosts)
 
+    def valid_user(self,user_id):
+        name = self.get_user_name(user_id) #I'm cheating and not writing a real function
+        if name == 'vBulletin Message': #this is what happens when get_user_name is called for an invalid user
+            return False
+        else:
+            return True
+
     def get_all_posts(self, user_id):
         '''
         This method returns a list of all the posts by the specified user
@@ -97,6 +105,37 @@ class ChiefDelphi (object):
             post = post_page_soup.find("div", {"id":"post_message_" + post_number})
             post_data.append(post)
         return post_data
+
+    def get_users_with_posts(self,min_posts):
+        '''
+        This method returns a list of all user ids with the specified number of posts
+
+        The more posts you have, the longer this will take!
+        '''
+        return_ids = []
+        page_file = "memberlist.php"
+        page_number = 1
+        done = False
+        while True:
+            params_payload = {"order":"DESC","sort":"posts","pp":"100","page":str(page_number)}
+            soup = self.get_page(page_file,params_payload)
+            main_table = soup.find_all("form")[1].find_all("table")[1].find_all("tr",{"align":"center"})
+            for row in main_table:
+                if row == main_table[0]: #first row is just a header for the table
+                    continue
+                user_link_string = row.find("td").find("a")['href']
+                user_id_string = user_link_string[user_link_string.find("u=")+2:]
+                user_id = int(user_id_string)
+                post_number_string = row.find_all("td")[1].text
+                post_number = int(post_number_string.replace(',','')) #run a replace because the post number has commas
+                if(post_number < min_posts):
+                    done = True
+                    break
+                return_ids.append(user_id)
+            if done:
+                break
+            page_number += 1
+        return return_ids
 
 def main():
     '''
