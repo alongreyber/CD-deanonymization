@@ -3,10 +3,16 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from datetime import date
+from datetime import datetime
 
 url_base = "http://chiefdelphi.com/forums/"
 target_user_id = 25240;
 
+#small functions that make it easier to save and load the tables of data that we're working with
+def save_table(table,name):
+    pickle.dump(table,open(name + ".pikl","wb"))
+def load_table(name):
+    return pickle.load(open(name + ".pikl","rb"))
 
 class ChiefDelphi (object):
     '''
@@ -18,6 +24,8 @@ class ChiefDelphi (object):
     def get_page(self, page_php, params):
         '''
         returns beautiful soup content
+
+        
         '''
         user_page = requests.get(url_base + page_php, params=params)
         user_page.raise_for_status()
@@ -80,7 +88,7 @@ class ChiefDelphi (object):
         else:
             return True
 
-    def get_all_posts(self, user_id):
+    def get_all_posts_by_user(self, user_id):
         '''
         This method returns a list of all the posts by the specified user
 
@@ -116,7 +124,6 @@ class ChiefDelphi (object):
         '''
         This method returns a list of all user ids with the specified number of posts
 
-        The more posts you have, the longer this will take!
         '''
         return_list = []
         page_file = "memberlist.php"
@@ -149,6 +156,54 @@ class ChiefDelphi (object):
                 break
             page_number += 1
         return return_list
+
+        def str_to_date(self,date_string):
+            '''
+            parses string with format "MM-DD-YYYY, HH:MM AM/PM" into a datetime object
+            '''
+            mon = date_string[:2]
+            day = date_string[3:5]
+            yr = date_string[6:10]
+            minute = date_string[14:16]
+
+            hr = date_string[12:14]
+            if date_string[18:20] == "PM":
+                hr = str(int(hr)+12)
+            return datetime(int(yr),int(mon),int(day),int(hr),int(minute))
+
+        def get_all_posts(self):
+            '''
+            Gets every post on chief delphi using the archive to increase speed
+            This function still probably takes a while
+
+            return format:
+
+            returns a list of dictionaries. This allows relatively easy indexing.
+            each element in the list is a post
+            post can be indexed using keywords text,date,name
+            '''
+            return_data = []
+            cur_post = 5
+            acv_base = "archive/index.php/t-"
+            done = False
+            while not done:
+                url = 
+                soup = self.get_page(acv_base+str(cur_post).zfill(6)+".html",{})
+                posts = soup.find_all("div".{"class":"post"})
+                for post in posts:
+                    user_name = post.find("div",{"class":"username"}).text
+                    post_date_string = post.find("div",{"class":"date"}).text
+                    post_date = self.str_to_date(post_date_string)
+                    post_text = find("div",{"class":"posttext"})
+                    post_data = {"text":post_text,"date":post_date,"name":user_name}
+                    return_data.append(post_data)
+            return return_data
+
+
+
+
+
+
 
 def main():
     '''
