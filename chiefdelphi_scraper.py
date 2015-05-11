@@ -18,7 +18,7 @@ class ChiefDelphi (object):
     '''
     This is the ChiefDelphi Object. It does things with ChiefDelphi.
     '''
-    def __init__(self, log_level=logging.DEBUG):
+    def __init__(self, log_level=logging.CRITICAL):
         self.logger = logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=log_level)
 
     def get_page(self, page_php, params):
@@ -157,47 +157,69 @@ class ChiefDelphi (object):
             page_number += 1
         return return_list
 
-        def str_to_date(self,date_string):
-            '''
-            parses string with format "MM-DD-YYYY, HH:MM AM/PM" into a datetime object
-            '''
-            mon = date_string[:2]
-            day = date_string[3:5]
-            yr = date_string[6:10]
-            minute = date_string[14:16]
+    def str_to_date(self,date_string):
+        '''
+        parses string with format "MM-DD-YYYY, HH:MM AM/PM" into a datetime object
+        '''
+        mon = int(date_string[:2])
+        day = int(date_string[3:5])
+        yr = int(date_string[6:10])
+        minute = int(date_string[15:17])
 
-            hr = date_string[12:14]
-            if date_string[18:20] == "PM":
-                hr = str(int(hr)+12)
-            return datetime(int(yr),int(mon),int(day),int(hr),int(minute))
+        hr = date_string[12:14]
+        if date_string[18:20] == "PM":
+            hr_int = (int(hr)+12) % 24 #mod 24 because chiefdelphi displays 1-24 and python accepts 0-23
+        else:
+            hr_int = int(hr)
+        return datetime(yr,mon,day,hr_int,minute)
+    
+    def number_posts(self):
+        '''
+        Returns the number of pages of posts on chiefdelphi currently.
+        Right now this number is in the range of 130,000
+        '''
+        acv_base = "archive/index.php/t-"
+        cur_page = 137200
+        while True:
+            soup = self.get_page(acv_base+str(cur_page)+".html",{})
+            if soup.find() == None: #the page is empty
+                break
+            else:
+                cur_page += 1
+        return cur_page-1
 
-        def get_all_posts(self):
-            '''
-            Gets every post on chief delphi using the archive to increase speed
-            This function still probably takes a while
+    def get_all_posts(self,page_start=5,page_end=0):
+        '''
+        Gets every post on chief delphi using the archive to increase speed
+        This function still probably takes a while
 
-            return format:
+        return format:
 
-            returns a list of dictionaries. This allows relatively easy indexing.
-            each element in the list is a post
-            post can be indexed using keywords text,date,name
-            '''
-            return_data = []
-            cur_post = 5
-            acv_base = "archive/index.php/t-"
-            done = False
-            while not done:
-                url = 
-                soup = self.get_page(acv_base+str(cur_post).zfill(6)+".html",{})
-                posts = soup.find_all("div".{"class":"post"})
-                for post in posts:
-                    user_name = post.find("div",{"class":"username"}).text
-                    post_date_string = post.find("div",{"class":"date"}).text
-                    post_date = self.str_to_date(post_date_string)
-                    post_text = find("div",{"class":"posttext"})
-                    post_data = {"text":post_text,"date":post_date,"name":user_name}
-                    return_data.append(post_data)
-            return return_data
+        returns a list of dictionaries. This allows relatively easy indexing.
+        each element in the list is a post
+        post can be indexed using keywords text,date,name
+        '''
+        return_data = []
+        cur_post = page_start
+        acv_base = "archive/index.php/t-"
+        done = False
+        while True:
+            if page_end == cur_post: #end if we reached maximum
+                break
+            soup = self.get_page(acv_base+str(cur_post).zfill(6)+".html",{})
+            posts = soup.find_all("div",{"class":"post"})
+            if posts == None: #end if we reached last post
+                break
+            print("getting page " + str(cur_post))
+            for post in posts:
+                user_name = post.find("div",{"class":"username"}).text
+                post_date_string = post.find("div",{"class":"date"}).text
+                post_date = self.str_to_date(post_date_string)
+                post_text = post.find("div",{"class":"posttext"})
+                post_data = {"text":post_text,"date":post_date,"name":user_name}
+                return_data.append(post_data)
+            cur_post += 1
+        return return_data
 
 
 
@@ -210,8 +232,7 @@ def main():
     This is a pretty little main method
     '''
     cd = ChiefDelphi()
-    cd.get_user_name(target_user_id)
-    cd.get_user_join_date(target_user_id)
+    cd.get_all_posts()
 
 if __name__ == "__main__":
     '''
