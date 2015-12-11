@@ -188,7 +188,7 @@ class ChiefDelphi (object):
                 cur_page += 1
         return cur_page-1
 
-    def get_all_posts(self,page_start=5,page_end=0):
+    def get_all_posts(self):
         '''
         Gets every post on chief delphi using the archive to increase speed
         This function still probably takes a while
@@ -200,25 +200,34 @@ class ChiefDelphi (object):
         post can be indexed using keywords text,date,name
         '''
         return_data = []
-        cur_post = page_start
+        cur_post = 5
+        cur_thousand_post = 0
         acv_base = "archive/index.php/t-"
         done = False
-        while True:
-            if page_end == cur_post: #end if we reached maximum
+        iterate_threshold = 5
+        no_post_count = 0
+        while True: #this iterates for each 10,000 pages (corresponds almost perfectly to each year)
+            while True:
+                soup = self.get_page(acv_base+str(cur_post)+".html",{})
+                posts = soup.find_all("div",{"class":"post"})
+                if posts == None: #if nothing on the page 
+                    no_post_count += 1 #this makes sure that we continue even after passing a blank page
+                    if no_post_count >= iterate_threshold:
+                        no_post_count = 0
+                        break
+                print("getting page " + str(cur_post))
+                for post in posts:
+                    user_name = post.find("div",{"class":"username"}).text
+                    post_date_string = post.find("div",{"class":"date"}).text
+                    post_date = self.str_to_date(post_date_string)
+                    post_text = post.find("div",{"class":"posttext"})
+                    post_data = {"text":post_text,"date":post_date,"name":user_name}
+                    return_data.append(post_data)
+                cur_post += 1
+            cur_thousand_post += 1
+            cur_post = cur_thousand_post * 10000
+            if(cur_post >= 160000): #if the year is 2017 it's probably the end
                 break
-            soup = self.get_page(acv_base+str(cur_post).zfill(6)+".html",{})
-            posts = soup.find_all("div",{"class":"post"})
-            if posts == None: #end if we reached last post
-                break
-            print("getting page " + str(cur_post))
-            for post in posts:
-                user_name = post.find("div",{"class":"username"}).text
-                post_date_string = post.find("div",{"class":"date"}).text
-                post_date = self.str_to_date(post_date_string)
-                post_text = post.find("div",{"class":"posttext"})
-                post_data = {"text":post_text,"date":post_date,"name":user_name}
-                return_data.append(post_data)
-            cur_post += 1
         return return_data
 
 
