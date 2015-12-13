@@ -188,7 +188,7 @@ class ChiefDelphi (object):
                 cur_page += 1
         return cur_page-1
 
-    def get_all_posts(self):
+    def get_all_posts(self,start_year=2001,end_year=2016):
         '''
         Gets every post on chief delphi using the archive to increase speed
         This function still probably takes a while
@@ -201,7 +201,7 @@ class ChiefDelphi (object):
         '''
         return_data = []
         cur_post = 5
-        cur_thousand_post = 0
+        cur_thousand_post = (start_year - 2001) * 10000
         acv_base = "archive/index.php/t-"
         done = False
         iterate_threshold = 5
@@ -226,7 +226,7 @@ class ChiefDelphi (object):
                 cur_post += 1
             cur_thousand_post += 1
             cur_post = cur_thousand_post * 10000
-            if(cur_post >= 160000): #if the year is 2017 it's probably the end
+            if (cur_post >= (start_year - 2001) * 10000):
                 break
         return return_data
 
