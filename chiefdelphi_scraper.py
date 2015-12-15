@@ -25,7 +25,7 @@ class ChiefDelphi (object):
         '''
         returns beautiful soup content
 
-        
+
         '''
         user_page = requests.get(url_base + page_php, params=params)
         user_page.raise_for_status()
@@ -35,7 +35,7 @@ class ChiefDelphi (object):
     def get_user_name(self, user_id):
         '''
         This method gets a join date for a given user id
-        
+
         :param int user_id: The user id to find the date of
         :return string: The date a user joined
         '''
@@ -50,7 +50,7 @@ class ChiefDelphi (object):
     def get_user_join_date(self, user_id):
         '''
         This method gets a join date for a given user id
-        
+
         :param int user_id: The user id to find the date of
         :return datetime.date: The date a user joined
         '''
@@ -117,7 +117,7 @@ class ChiefDelphi (object):
             logging.debug(post_page_soup)
             post = post_page_soup.find("div", {"id":"post_message_" + post_number})
             post_data = {post_number:post}
-            post_list.append(post_data) 
+            post_list.append(post_data)
         return post_list
 
     def get_user_data(self,min_posts):
@@ -172,7 +172,7 @@ class ChiefDelphi (object):
         else:
             hr_int = int(hr)
         return datetime(yr,mon,day,hr_int,minute)
-    
+
     def number_posts(self):
         '''
         Returns the number of pages of posts on chiefdelphi currently.
@@ -204,18 +204,18 @@ class ChiefDelphi (object):
         cur_thousand_post = (start_year - 2001) * 10000
         acv_base = "archive/index.php/t-"
         done = False
-        iterate_threshold = 5
+        iterate_threshold = 20
         no_post_count = 0
         while True: #this iterates for each 10,000 pages (corresponds almost perfectly to each year)
             while True:
-                soup = self.get_page(acv_base+str(cur_post)+".html",{})
+                soup = self.get_page(acv_base+str(cur_post + cur_thousand_post)+".html",{})
                 posts = soup.find_all("div",{"class":"post"})
-                if posts == None: #if nothing on the page 
+                if posts == None: #if nothing on the page
                     no_post_count += 1 #this makes sure that we continue even after passing a blank page
                     if no_post_count >= iterate_threshold:
                         no_post_count = 0
                         break
-                print("getting page " + str(cur_post))
+                print("getting page " + str(cur_post + cur_thousand_post))
                 for post in posts:
                     user_name = post.find("div",{"class":"username"}).text
                     post_date_string = post.find("div",{"class":"date"}).text
@@ -223,6 +223,7 @@ class ChiefDelphi (object):
                     post_text = post.find("div",{"class":"posttext"})
                     post_data = {"text":post_text,"date":post_date,"name":user_name}
                     return_data.append(post_data)
+                    print("    post by: " + user_name)
                 cur_post += 1
             cur_thousand_post += 1
             cur_post = cur_thousand_post * 10000
@@ -248,5 +249,3 @@ if __name__ == "__main__":
     This executes if the script gets called. Useful for quick and dirty testing
     '''
     main()
-        
-    
