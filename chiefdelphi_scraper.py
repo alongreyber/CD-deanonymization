@@ -201,16 +201,18 @@ class ChiefDelphi (object):
         '''
         return_data = []
         cur_post = 5
-        cur_thousand_post = (start_year - 2001) * 10000
+        cur_thousand_post = start_year - 2001
         acv_base = "archive/index.php/t-"
         done = False
-        iterate_threshold = 20
+        iterate_threshold = 100
         no_post_count = 0
         while True: #this iterates for each 10,000 pages (corresponds almost perfectly to each year)
+            cur_post = cur_thousand_post * 10000
             while True:
                 soup = self.get_page(acv_base+str(cur_post + cur_thousand_post)+".html",{})
                 posts = soup.find_all("div",{"class":"post"})
-                if posts == None: #if nothing on the page
+
+                if len(posts) == 0: #if nothing on the page
                     no_post_count += 1 #this makes sure that we continue even after passing a blank page
                     if no_post_count >= iterate_threshold:
                         no_post_count = 0
@@ -220,14 +222,13 @@ class ChiefDelphi (object):
                     user_name = post.find("div",{"class":"username"}).text
                     post_date_string = post.find("div",{"class":"date"}).text
                     post_date = self.str_to_date(post_date_string)
-                    post_text = post.find("div",{"class":"posttext"})
+                    post_text = post.find("div",{"class":"posttext"}).text
                     post_data = {"text":post_text,"date":post_date,"name":user_name}
                     return_data.append(post_data)
-                    print("    post by: " + user_name)
+                    print ("    post by: " + user_name.encode('UTF-8'))
                 cur_post += 1
             cur_thousand_post += 1
-            cur_post = cur_thousand_post * 10000
-            if (cur_post >= (start_year - 2001) * 10000):
+            if (cur_post >= (end_year - 2001) * 10000):
                 break
         return return_data
 
