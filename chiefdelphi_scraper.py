@@ -206,6 +206,9 @@ class ChiefDelphi (object):
         done = False
         iterate_threshold = 100
         no_post_count = 0
+        match_infoline_f1 = re.compile("Posted by.*([0-9]{2}/){2}[0-9]{4}") #this finds first infoline format
+        match_infoline_f2a = re.compile("Posted by .*\.") #this finds second infoline format first line
+        match_infoline_f2b = re.compile("Posted on ([0-9]{1,2}/){2}[0-9]{2,4}") #this finds second infoline format second line
         while True: #this iterates for each 10,000 pages (corresponds almost perfectly to each year)
             cur_post = cur_thousand_post * 10000
             while True:
@@ -219,13 +222,63 @@ class ChiefDelphi (object):
                         break
                 print("getting page " + str(cur_post + cur_thousand_post))
                 for post in posts:
-                    user_name = post.find("div",{"class":"username"}).text
-                    post_date_string = post.find("div",{"class":"date"}).text
-                    post_date = self.str_to_date(post_date_string)
                     post_text = post.find("div",{"class":"posttext"}).text
-                    post_data = {"text":post_text,"date":post_date,"name":user_name}
-                    return_data.append(post_data)
-                    print ("    post by: " + user_name.encode('UTF-8'))
+                    user_name = post.find("div",{"class":"username"}).text
+
+                    if user_name == "archiver": #if the post is by the archiver it requires more parsing
+                        archiver_post = True
+                        if  match_infoline_f1.search(post_text): #there are multiple info formats... this parses the first
+                            #start Parser
+                            beg = match_infoline_f1.search(post_text).start()
+                            name_index = post_text.find(" at",beg)
+                            date_index = post_text.find("at ",name_index)
+                            time_index = post_text.find(" ", date_index + 3)
+                            end_index = post_text.find(" ",time_index + 3)
+                            user_name = post_text[beg+10:name_index]
+                            datestr = post_text[date_index+3:time_index]
+                            timestr = post_text[time_index+1:end_index+3]
+                            post_date = datetime.strptime(datestr + " " + timestr, '%m/%d/%Y %I:%M %p') #parse date and time string
+                            #end Parser
+                            save = True
+                        elif match_infoline_f2a.search(post_text) and match_infoline_f2b.search(post_text): #this parses the second format
+                            #Start Parser
+                            beg = match_infoline_f2a.search(post_text).start()
+                            name_index = post_text.find(" by",beg)
+                            name_end_index = post_text.find(".",name_index)
+                            date_line_index = match_infoline_f2b.search(post_text).start()
+                            datetime_index = date_line_index + 10
+                            end_index = post_text.find("M ",datetime_index + 3) + 1
+                            user_name = post_text[name_index+3:name_end_index]
+                            datetimestr = post_text[datetime_index:end_index]
+                            if datetimestr[1] == '/':
+                                datetimestr = '0' + datetimestr
+                            if datetimestr[4] == '/':
+                                datetimestr = datetimestr[:3] + '0' + datetimestr[3:]
+                            try:
+                                post_date = datetime.strptime(datetimestr, '%m/%d/%y %I:%M %p')
+                            except ValueError:
+                                    post_date = datetime.strptime(datetimestr, '%m/%d/%Y %I:%M %p') #parse date and time string (4 digit year)
+                            #End Parser
+                            save = True
+                        else:
+                            save = False
+                    else:
+                        archiver_post = False
+                        post_date_string = post.find("div",{"class":"date"}).text
+                        post_date = self.str_to_date(post_date_string)
+                        post_text = post.find("div",{"class":"posttext"}).text
+                        post_data = {"text":post_text,"date":post_date,"name":user_name}
+                        save = True
+
+                    if save == True:
+                        post_data = {"text":post_text,"date":post_date,"name":user_name}
+                        return_data.append(post_data)
+                        if archiver_post:
+                            print ("saving post by: " + user_name.encode('UTF-8') + " (archived)")
+                        else:
+                            print ("saving post by: " + user_name.encode('UTF-8'))
+                    else:
+                        print ("    post by: " + user_name.encode('UTF-8'))
                 cur_post += 1
             cur_thousand_post += 1
             if (cur_post >= (end_year - 2001) * 10000):
